@@ -1167,7 +1167,9 @@ $grefhCurrent = Evaluate_Interfaces (
     $ghOptions{'exclude-traffic'},
     $ghOptions{'include-traffic'},
     $ghOptions{'exclude-property'},
-    $ghOptions{'include-property'}
+    $ghOptions{'include-property'},
+    $ghOptions{'exclude-ifcount'},
+    $ghOptions{'exclude-ifcount-free'}
     );
 #logger(5, "Interface inclusions / exclusions -> generated hash\ngrefhCurrent:".Dumper($grefhCurrent));
 
@@ -2984,6 +2986,8 @@ sub Evaluate_Interfaces {
     my $IncludeLoadTrackList = shift;
     my $ExcludePropertyTrackList = shift;
     my $IncludePropertyTrackList = shift;
+    my $ExcludeIfCountList = shift;
+    my $ExcludeIfCountFreeList = shift;
 
     if (defined $ExcludeTrackList) { logger(2, "ExcludeTrackList: " . join(", ",@{$ExcludeTrackList})); }
     if (defined $IncludeTrackList) { logger(2, "IncludeTrackList: " . join(", ",@{$IncludeTrackList})); }
@@ -2991,6 +2995,8 @@ sub Evaluate_Interfaces {
     if (defined $IncludeLoadTrackList) { logger(2, "IncludeLoadTrackList: " . join(", ",@{$IncludeLoadTrackList})); }
     if (defined $ExcludePropertyTrackList) { logger(2, "ExcludePropertyTrackList: " . join(", ",@{$ExcludePropertyTrackList})); }
     if (defined $IncludePropertyTrackList) { logger(2, "IncludePropertyTrackList: " . join(", ",@{$IncludePropertyTrackList})); }
+    if (defined $ExcludeIfCountList) { logger(2, "ExcludeIfCountList: " . join(", ",@{$ExcludeIfCountList})); }
+    if (defined $ExcludeIfCountFreeList) { logger(2, "ExcludeIfCountFreeList: " . join(", ",@{$ExcludeIfCountFreeList})); }
 
     # Loop through all interfaces
     for my $ifName (keys %{$grefhCurrent->{MD}->{If}}) {
@@ -3008,6 +3014,8 @@ sub Evaluate_Interfaces {
         $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedTrack} = "false";
         $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedLoadTrack} = "false";
         $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedPropertyTrack} = "false";
+        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCount} = "false";
+        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCountFree} = "false";
 
         # Exclude "temporary interfaces"
         # After a reboot of a node, the description of some interfaces seems to have the following format for
@@ -3222,6 +3230,66 @@ sub Evaluate_Interfaces {
             }
         } else {
             $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedPropertyTrack} = "true";
+        }
+
+        #----- Excludes interfaces from ifcounting -----#
+
+        # Process the interface counting exclusion list
+        for my $ExcludeString (@$ExcludeIfCountList) {
+            if ($ghOptions{regexp}) {
+                if ($ghOptions{'alias'} and $ghOptions{'alias-matching'}) {
+                    if ("${ifNameReadable}" =~ /$ExcludeString/i or "${ifAliasReadable}" =~ /$ExcludeString/i or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" (Alias: \"$ifAliasReadable\") from port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCount} = "true";
+                    }
+                } else {
+                    if ("${ifNameReadable}" =~ /$ExcludeString/i or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" from port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCount} = "true";
+                    }
+                }
+            } else {
+                if ($ghOptions{'alias'} and $ghOptions{'alias-matching'}) {
+                    if ("${ifNameReadable}" eq "$ExcludeString" or "${ifAliasReadable}" eq "$ExcludeString" or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" (Alias: \"$ifAliasReadable\") from port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCount} = "true";
+                    }
+                } else {
+                    if ("${ifNameReadable}" eq "$ExcludeString" or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" from port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCount} = "true";
+                    }
+                }
+            }
+        }
+
+        # Process the interface free counting exclusion list
+        for my $ExcludeString (@$ExcludeIfCountFreeList) {
+            if ($ghOptions{regexp}) {
+                if ($ghOptions{'alias'} and $ghOptions{'alias-matching'}) {
+                    if ("${ifNameReadable}" =~ /$ExcludeString/i or "${ifAliasReadable}" =~ /$ExcludeString/i or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" (Alias: \"$ifAliasReadable\") from free-port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCountFree} = "true";
+                    }
+                } else {
+                    if ("${ifNameReadable}" =~ /$ExcludeString/i or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" from free-port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCountFree} = "true";
+                    }
+                }
+            } else {
+                if ($ghOptions{'alias'} and $ghOptions{'alias-matching'}) {
+                    if ("${ifNameReadable}" eq "$ExcludeString" or "${ifAliasReadable}" eq "$ExcludeString" or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" (Alias: \"$ifAliasReadable\") from free-port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCountFree} = "true";
+                    }
+                } else {
+                    if ("${ifNameReadable}" eq "$ExcludeString" or "$ExcludeString" eq "ALL") {
+                        logger(1, "-- exclude ($ExcludeString) interface \"$ifNameReadable\" from free-port counting");
+                        $grefhCurrent->{MD}->{If}->{$ifName}->{ExcludedIfCountFree} = "true";
+                    }
+                }
+            }
         }
 
     } # for each interface
@@ -3579,8 +3647,11 @@ sub Calculate_Packets {
 sub Calculate_LastTraffic {
     my ($ifName, $free) = @_;
 
-    if ($grefhCurrent->{If}->{"$ifName"}->{ifSpeed}) {
+    if ($grefhCurrent->{If}->{"$ifName"}->{ifSpeed} and
         # Interface has a speed property, that can be a physical interface
+        $grefhCurrent->{MD}->{If}->{"$ifName"}->{ExcludedIfCount} eq "false"
+        # interface should not be counted
+    ) {
 
         if ($ifName =~ /Ethernet(\d+)Q2F(\d+)Q2F(\d+)/) {
             # we look for ethernet ports (and decide if it is a stacked switch), x/x/x format
@@ -3588,11 +3659,17 @@ sub Calculate_LastTraffic {
                 $gInterfacesWithoutTrunk->{"$1/$2/$3"} = $free;
                 $gNumberOfInterfacesWithoutTrunk++;
                 # look for free ports with admin status up
-                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} and $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} eq 'up') {
+                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} and
+                    $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} eq 'up' and
+                    $grefhCurrent->{MD}->{If}->{"$ifName"}->{ExcludedIfCountFree} eq "false"
+                ) {
                     $grefhCurrent->{If}->{$ifName}->{ifLastTrafficOutOfRange} = "yellow";
                     $gNumberOfFreeUpInterfaces++;
                 }
-                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} and $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} eq 'true') {
+                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} and
+                    $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} eq 'true' and
+                    $grefhCurrent->{MD}->{If}->{"$ifName"}->{ExcludedIfCountFree} eq "false"
+                ) {
                     $grefhCurrent->{If}->{$ifName}->{ifLastTrafficOutOfRange} = "yellow";
                     $gNumberOfFreeUpInterfaces++;
                 }
@@ -3603,11 +3680,17 @@ sub Calculate_LastTraffic {
                 $gInterfacesWithoutTrunk->{"$1/$2"} = $free;
                 $gNumberOfInterfacesWithoutTrunk++;
                 # look for free ports with admin status up
-                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} and $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} eq 'up') {
+                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} and
+                    $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} eq 'up' and
+                    $grefhCurrent->{MD}->{If}->{"$ifName"}->{ExcludedIfCountFree} eq "false"
+                ) {
                     $grefhCurrent->{If}->{$ifName}->{ifLastTrafficOutOfRange} = "yellow";
                     $gNumberOfFreeUpInterfaces++;
                 }
-                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} and $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} eq 'true') {
+                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} and
+                    $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} eq 'true' and
+                    $grefhCurrent->{MD}->{If}->{"$ifName"}->{ExcludedIfCountFree} eq "false"
+                ) {
                     $grefhCurrent->{If}->{$ifName}->{ifLastTrafficOutOfRange} = "yellow";
                     $gNumberOfFreeUpInterfaces++;
                 }
@@ -3618,19 +3701,28 @@ sub Calculate_LastTraffic {
                 $gInterfacesWithoutTrunk->{"$ifName"} = $free;
                 $gNumberOfInterfacesWithoutTrunk++;
                 # look for free ports with admin status up
-                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} and $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} eq 'up') {
+                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} and
+                    $grefhCurrent->{If}->{"$ifName"}->{ifAdminStatus} eq 'up' and
+                    $grefhCurrent->{MD}->{If}->{"$ifName"}->{ExcludedIfCountFree} eq "false"
+                ) {
                     $grefhCurrent->{If}->{$ifName}->{ifLastTrafficOutOfRange} = "yellow";
                     $gNumberOfFreeUpInterfaces++;
                 }
-                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} and $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} eq 'true') {
+                if ($free and defined $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} and
+                    $grefhCurrent->{If}->{"$ifName"}->{ifEnabled} eq 'true' and
+                    $grefhCurrent->{MD}->{If}->{"$ifName"}->{ExcludedIfCountFree} eq "false"
+                ) {
                     $grefhCurrent->{If}->{$ifName}->{ifLastTrafficOutOfRange} = "yellow";
                     $gNumberOfFreeUpInterfaces++;
                 }
             }
         }
     }
-    logger(1, "ifName: $ifName\tFreeUp: $gNumberOfFreeUpInterfaces\tWithoutTrunk: $gNumberOfInterfacesWithoutTrunk\tSpeed: ".
-        $grefhCurrent->{If}->{"$ifName"}->{ifSpeed});
+    logger(1,
+        "ifDescr: $ifName\t".
+        "ifAlias: ".denormalize($grefhCurrent->{If}->{"$ifName"}->{ifAlias})."\t".
+        "FreeUp: $gNumberOfFreeUpInterfaces\tWithoutTrunk: $gNumberOfInterfacesWithoutTrunk"
+    );
 }
 
 
@@ -6133,6 +6225,7 @@ sub print_usage () {
         [--ct <critical load prct>,<critical pkterr/s>,<critical pktdiscard/s>]
         [--tp <property list>] [--ip <property tracking interface inclusion list>] [--ep <property tracking interface exclusion list>]
         [--wp <warning property change counter>] [--cp <critical property change counter>] [-r] [-f]
+        [--ec <portcount exclusion list>] [--ecf <free port count exclusion list>]
         [--cachedir <caching directory>] [--statedir <state files directory>] [--(no)duplex] [--(no)stp]
         [--(no)vlan] [--accessmethod <method>[:<target>]] [--htmltabledir <system path to html interface tables>]
         [--htmltableurl <url to html interface tables>] [--htmltablelinktarget <target window>] [-d <delta>] [--ifs <separator>]
@@ -6264,6 +6357,15 @@ sub print_usage () {
         Number of property changes before leading to a warning alert
     --cp, --critical-property (optional)
         Number of property changes before leading to a critical alert
+
+  Interface counting
+    --ec, --exclude-ifcount
+        Exclude a interface from counting as a port
+        This allows the admin to not count some ports, e.g. Port-channel*
+    --ecf, --exclude-ifcount-free
+        Exclude a interface from countint as free port
+        This allows the admin to keep track about actual free interfaces
+        e.g. unlisting desktop ports from being free when the link is down
 
   Snmp options:
     -C, --community (required)
@@ -6529,6 +6631,9 @@ sub check_options () {
         'include-property|ip=s@',               # list of interfaces included in the property tracking
         'warning-property|wp=i',
         'critical-property|cp=i',
+        #------ free interfaces counting/tracking #
+        'exclude-ifcount|ec=s@',                # list of interfaces to exclude from counting ports
+        'exclude-ifcount-free|ecf=s@',          # list of interfaces to exclude from counting free ports
         #------- performance data -------#
         'enableperfdata|f',                     # enable port performance data, default is port perfdata disabled
         'portperfunit=s',                       # bit|bps: in/out traffic in perfdata could be reported in bits or in bps
@@ -6629,6 +6734,9 @@ sub check_options () {
         'include-property'          => undef,
         'warning-property'          => 0,
         'critical-property'         => 0,
+        #------ free interfaces tracking #
+        'exclude-ifcount'           => undef,
+        'exclude-ifcount-free'      => undef,
         #------- performance data -------#
         'enableperfdata'            => 0,
         'portperfunit'              => "@portperfunit@",
@@ -6884,7 +6992,15 @@ sub check_options () {
     if (exists $commandline{'critical-property'}) {
         $ghOptions{'critical-property'} = $commandline{'critical-property'};
     }
-
+    # organizing port counting excludes
+    if (exists $commandline{'exclude-ifcount'}) {
+        my @tmparray = split("$ghOptions{ifs}", join("$ghOptions{ifs}",@{$commandline{'exclude-ifcount'}}));
+        $ghOptions{'exclude-ifcount'} = \@tmparray;
+    }
+    if (exists $commandline{'exclude-ifcount-free'}) {
+        my @tmparray = split("$ghOptions{ifs}", join("$ghOptions{ifs}",@{$commandline{'exclude-ifcount-free'}}));
+        $ghOptions{'exclude-ifcount-free'} = \@tmparray;
+    }
     #------ traffic tracking -------#
     # organizing excluded/included interfaces for traffic tracking
     if (exists $commandline{'exclude-traffic'}) {
